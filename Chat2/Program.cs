@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Text;
+using AutoMapper;
 using Chat2;
 using Chat2.model;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -45,6 +47,11 @@ builder.Services.AddIdentity<User, Role>(options =>
     options.Password.RequireUppercase = false;
 }).AddEntityFrameworkStores<Context>();
 
+builder.Services.AddSingleton<IMapper>(
+    new Mapper(new MapperConfiguration(expression =>
+    {
+        expression.AddMaps(Assembly.GetExecutingAssembly());
+    })));
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

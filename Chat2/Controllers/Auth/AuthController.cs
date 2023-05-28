@@ -37,9 +37,10 @@ public class AuthController : Controller
             },
             loginDto.Password
         );
-        if (result.Succeeded) return Ok();
+        if (result.Succeeded)
+            return Ok();
 
-        return Problem(string.Join(",", result.Errors.Select(error => error.Description)));
+        return Problem(string.Join(";", result.Errors.Select(error => error.Description)));
     }
 
     [HttpPost]

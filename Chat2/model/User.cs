@@ -9,7 +9,7 @@ namespace Chat2.model;
 [Index("UserName", IsUnique = true)]
 public class User : IdentityUser
 {
-    public virtual List<Room> Rooms { get; set; }
-    public virtual List<Message> Messages { get; set; }
-    public virtual List<Role> Roles { get; set; }
+    public virtual List<Room>? Rooms { get; set; }
+    public virtual List<Message>? Messages { get; set; }
+    public virtual List<Role>? Roles { get; set; }
 }
