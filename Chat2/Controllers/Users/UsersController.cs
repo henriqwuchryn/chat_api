@@ -18,7 +18,11 @@ public class UsersController : BaseController
     private readonly Context _context;
     private  readonly IMapper _mapper;
 
-    public UsersController(Context context, IConfiguration config, UserManager<User> userManager, IMapper mapper) : base(userManager)
+    public UsersController(
+        Context context,
+        IConfiguration config,
+        UserManager<User> userManager,
+        IMapper mapper) : base(userManager,context)
     {
         _context = context;
         _config = config;
@@ -40,15 +44,11 @@ public class UsersController : BaseController
     public async Task<IActionResult> GetAllUsers()
     {
         var userList = UserManager.Users.ToList();
-        var userDetailsDtoList = new List<UserDetailsDto>();
-        for (int i = 0; i < userList.Count; i++)
-        {
-            var userDetailsDto = _mapper.Map<UserDetailsDto>(userList[i]);
-            userDetailsDtoList.Add(userDetailsDto);
-        }
-        return Ok(userDetailsDtoList);
+        var userListItemList = userList.Select(t => _mapper.Map<UserListItemDto>(t)).ToList();
+        return Ok(userListItemList);
     }
 
+    
     [HttpPatch]
     [Authorize]
     [Route("/me/password")]
@@ -76,7 +76,7 @@ public class UsersController : BaseController
 
     [HttpDelete]
     [Authorize]
-    [Route("/me/{userId}")]
+    [Route("/me/user/{userId}")]
     public async Task<IActionResult> DeleteUser()
     {
         var user = await GetUserOrFailAsync();
@@ -91,6 +91,7 @@ public class UsersController : BaseController
     public async Task<IActionResult> GetCurrentUser()
     {
         var user = await GetUserOrFailAsync();
-        return Ok(user);
+        var userDetailsDto = _mapper.Map<UserDetailsDto>(user);
+        return Ok(userDetailsDto);
     }
 }

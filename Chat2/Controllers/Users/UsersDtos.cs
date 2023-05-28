@@ -11,6 +11,7 @@ public class UserDetailsDto:EntityDto
     public List<RoomListItemDto> Rooms { get; set; }
 }
 
+[AutoMap(typeof(User))]
 public class UserListItemDto:EntityDto
 {
     public string UserName { get; set; }

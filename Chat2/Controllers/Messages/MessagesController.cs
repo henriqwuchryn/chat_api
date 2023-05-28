@@ -16,8 +16,11 @@ public class MessagesController : BaseController
     private readonly Context _context;
     private IMapper _mapper;
 
-    public MessagesController(Context context, IConfiguration config, UserManager<User> userManager, IMapper mapper) :
-        base(userManager)
+    public MessagesController(
+        Context context,
+        IConfiguration config,
+        UserManager<User> userManager,
+        IMapper mapper) : base(userManager, context)
     {
         _context = context;
         _config = config;
@@ -53,9 +56,19 @@ public class MessagesController : BaseController
         return Ok(getmessage);
     }
 
+    [HttpGet]
+    public IActionResult ListMessages(string roomId)
+    {
+        var room = _context.Rooms.Include("Messages").Include("Messages.Author").First(r => r.Id == roomId);
+        var listMessages = room.Messages.ToList();
+        var messageListItemDtoList = _mapper.Map<List<MessageListItem>>(listMessages);
+        return Ok(messageListItemDtoList);
+
+    }
+
     [HttpPatch]
     [Authorize]
-    [Route("/me/{messageId}")]
+    [Route("/me/message/{messageId}")]
     public async Task<IActionResult> EditMessage(string messageId, EditMessageDto editMessageDto)
     {
         var user = await GetUserOrFailAsync();
@@ -78,7 +91,7 @@ public class MessagesController : BaseController
 
     [HttpDelete]
     [Authorize]
-    [Route("/me/{messageId}")]
+    [Route("/me/message/{messageId}")]
     public async Task<IActionResult> DeleteMessage(string messageId)
     {
         var user = await GetUserOrFailAsync();

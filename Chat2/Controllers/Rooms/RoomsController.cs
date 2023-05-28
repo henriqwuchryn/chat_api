@@ -17,14 +17,25 @@ public class RoomsController : BaseController
     private readonly Context _context;
     private readonly IMapper _mapper;
 
-    public RoomsController(Context context, IConfiguration config, UserManager<User> userManager, IMapper mapper) :
-        base(userManager)
+    public RoomsController(
+        Context context,
+        IConfiguration config,
+        UserManager<User> userManager,
+        IMapper mapper) : base(userManager, context)
     {
         _context = context;
         _config = config;
         _mapper = mapper;
     }
-    
+
+    [HttpGet]
+    public IActionResult GetAllRooms()
+    {
+        var roomList = _context.Rooms.ToList();
+        var roomDetailsDtoList = roomList.Select(room => _mapper.Map<RoomListItemDto>(room)).ToList();
+        return Ok(roomDetailsDtoList);
+    }
+
     [HttpGet]
     [Route("{roomId}")]
     public IActionResult GetRoomById(string roomId)
@@ -45,12 +56,17 @@ public class RoomsController : BaseController
     public async Task<IActionResult> CreateRoom(NewRoomDto newRoomDto)
     {
         var user = await GetUserOrFailAsync();
-        _context.Rooms.Add(new Room
+        var room = new Room
         {
             Name = newRoomDto.RoomName,
-            AuthorId = user.Id
-        });
+            Description = newRoomDto.Description,
+            AuthorId = user.Id,
+        };
+        _context.Rooms.Add(room);
+        user.Rooms ??= new List<Room>();
+        user.Rooms.Add(room);
         await _context.SaveChangesAsync();
+        await UserManager.UpdateAsync(user);
         return Ok();
     }
 
@@ -59,13 +75,14 @@ public class RoomsController : BaseController
     [Route("{roomId}/Join")]
     public async Task<IActionResult> JoinRoom(string roomId)
     {
-        var room = await _context.Rooms.FirstAsync(r => r.Id == roomId);
+        var room = await _context.Rooms.FindAsync(roomId);
         var user = await GetUserOrFailAsync();
+        var userContext = await _context.Users.FindAsync(user.Id);
 
         if (room != null)
         {
-            user.Rooms ??= new List<Room>();
-            user.Rooms.Add(room);
+            userContext.Rooms ??= new List<Room>();
+            userContext.Rooms.Add(room);
             await UserManager.UpdateAsync(user);
             return Ok();
         }
@@ -75,7 +92,7 @@ public class RoomsController : BaseController
 
     [HttpPatch]
     [Authorize]
-    [Route("/me/{roomId}")]
+    [Route("/me/room/{roomId}")]
     public async Task<IActionResult> RenameRoom(string roomId, RenameRoomDto renameRoomDto)
     {
         var user = await GetUserOrFailAsync();
@@ -91,7 +108,7 @@ public class RoomsController : BaseController
     }
 
     [HttpDelete]
-    [Route("/me/{roomId}")]
+    [Route("/me/room/{roomId}")]
     public async Task<IActionResult> DeleteRoom(string roomId)
     {
         var user = await GetUserOrFailAsync();
