@@ -32,8 +32,8 @@ public class RoomsController : BaseController
     public IActionResult GetAllRooms()
     {
         var roomList = _context.Rooms.ToList();
-        var roomDetailsDtoList = roomList.Select(room => _mapper.Map<RoomListItemDto>(room)).ToList();
-        return Ok(roomDetailsDtoList);
+        var roomListItemDtoList = roomList.Select(room => _mapper.Map<RoomListItemDto>(room)).ToList();
+        return Ok(roomListItemDtoList);
     }
 
     [HttpGet]
@@ -52,13 +52,13 @@ public class RoomsController : BaseController
 
     [HttpPost]
     [Authorize]
-    [Route("/me/room")]
+    [Route("/Me/Room")]
     public async Task<IActionResult> CreateRoom(NewRoomDto newRoomDto)
     {
         var user = await GetUserOrFailAsync();
         var room = new Room
         {
-            Name = newRoomDto.RoomName,
+            Name = newRoomDto.Name,
             Description = newRoomDto.Description,
             AuthorId = user.Id,
         };
@@ -92,23 +92,29 @@ public class RoomsController : BaseController
 
     [HttpPatch]
     [Authorize]
-    [Route("/me/room/{roomId}")]
-    public async Task<IActionResult> RenameRoom(string roomId, RenameRoomDto renameRoomDto)
+    [Route("/Me/Room/{roomId}")]
+    public async Task<IActionResult> RenameRoom(string roomId, PatchRoomDto patchRoomDto)
     {
         var user = await GetUserOrFailAsync();
         var room = await _context.Rooms.FindAsync(roomId);
-        if (room.AuthorId == user.Id)
+        if (room?.AuthorId != user.Id)
         {
-            room.Name = renameRoomDto.NewName;
-            await _context.SaveChangesAsync();
-            return Ok();
+            return Unauthorized();
         }
 
-        return Unauthorized();
+        if (patchRoomDto.Name is "" or null)
+        {
+            return Problem("Value can't be empty");
+        }
+
+        room.Name = patchRoomDto.Name;
+                      room.Description = patchRoomDto.Description;
+                      await _context.SaveChangesAsync();
+                      return Ok();
     }
 
     [HttpDelete]
-    [Route("/me/room/{roomId}")]
+    [Route("/Me/Room/{roomId}")]
     public async Task<IActionResult> DeleteRoom(string roomId)
     {
         var user = await GetUserOrFailAsync();

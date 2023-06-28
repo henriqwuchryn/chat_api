@@ -51,7 +51,7 @@ public class UsersController : BaseController
     
     [HttpPatch]
     [Authorize]
-    [Route("/me/password")]
+    [Route("/Me/Password")]
     public async Task<IActionResult> UpdatePassword(UpdatePasswordDto updatePasswordDto)
     {
         var user = await GetUserOrFailAsync();
@@ -76,7 +76,7 @@ public class UsersController : BaseController
 
     [HttpDelete]
     [Authorize]
-    [Route("/me/user/{userId}")]
+    [Route("/Me/User/{userId}")]
     public async Task<IActionResult> DeleteUser()
     {
         var user = await GetUserOrFailAsync();
@@ -87,7 +87,7 @@ public class UsersController : BaseController
 
     [HttpGet]
     [Authorize]
-    [Route("/me")]
+    [Route("/Me")]
     public async Task<IActionResult> GetCurrentUser()
     {
         var user = await GetUserOrFailAsync();

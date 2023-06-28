@@ -9,6 +9,7 @@ public class RoomDetailsDto : EntityDto
 {
     public string Name { get; set; }
     public string AuthorId { get; set; }
+    public string Description { get; set; }
     public List<UserListItemDto> Users { get; set; }
 }
 
@@ -16,15 +17,17 @@ public class RoomDetailsDto : EntityDto
 public class RoomListItemDto : EntityDto
 {
     public string Name { get; set; }
+    public string Description { get; set; }
 }
 
 public class NewRoomDto
 {
-    public string RoomName { get; set; }
+    public string Name { get; set; }
     public string? Description { get; set; }
 }
 
-public class RenameRoomDto
+public class PatchRoomDto
 {
-    public string NewName { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
 }
