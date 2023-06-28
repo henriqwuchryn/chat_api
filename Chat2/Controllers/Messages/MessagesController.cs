@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Chat2.Controllers;
 
 [ApiController]
-[Route("/rooms/{roomId}/[controller]")]
+[Route("/Rooms/{roomId}/[controller]")]
 public class MessagesController : BaseController
 {
     private readonly IConfiguration _config;
@@ -29,7 +29,7 @@ public class MessagesController : BaseController
 
     [HttpPost]
     [Authorize]
-    [Route("/me/message")]
+    [Route("/Me/Message")]
     public async Task<IActionResult> CreateMessage(string roomId, CreateMessageDto createMessageDto)
     {
         var author = await GetUserOrFailAsync();
@@ -60,30 +60,29 @@ public class MessagesController : BaseController
     public IActionResult ListMessages(string roomId)
     {
         var room = _context.Rooms.Include("Messages").Include("Messages.Author").First(r => r.Id == roomId);
-        var listMessages = room.Messages.ToList();
+        var listMessages = room.Messages.OrderByDescending(message => message.CreatedAt).ToList();
         var messageListItemDtoList = _mapper.Map<List<MessageListItem>>(listMessages);
         return Ok(messageListItemDtoList);
-
     }
 
     [HttpPatch]
     [Authorize]
-    [Route("/me/message/{messageId}")]
+    [Route("/Me/Message/{messageId}")]
     public async Task<IActionResult> EditMessage(string messageId, EditMessageDto editMessageDto)
     {
         var user = await GetUserOrFailAsync();
         var message = await _context.Messages.FindAsync(messageId);
         if (message != null)
         {
-            if (message.Author == user)
+            if (message.Author != user)
             {
-                message.Body = editMessageDto.NewBody;
-                message.Edited = true;
-                await _context.SaveChangesAsync();
-                return Ok();
+                return Unauthorized();
             }
 
-            return Unauthorized();
+            message.Body = editMessageDto.NewBody;
+            message.Edited = true;
+            await _context.SaveChangesAsync();
+            return Ok();
         }
 
         return NotFound();
@@ -91,7 +90,7 @@ public class MessagesController : BaseController
 
     [HttpDelete]
     [Authorize]
-    [Route("/me/message/{messageId}")]
+    [Route("/Me/Message/{messageId}")]
     public async Task<IActionResult> DeleteMessage(string messageId)
     {
         var user = await GetUserOrFailAsync();

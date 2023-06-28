@@ -18,6 +18,7 @@ public class MessageListItem:EntityDto
     public string Body { get; set; }
     public DateTime CreatedAt { get; set; }
     public UserListItemDto Author { get; set; }
+    public string RoomId { get; set; }
 }
 
 public class CreateMessageDto

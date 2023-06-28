@@ -52,7 +52,11 @@ public class AuthController : Controller
         if (user != null && await UserManager.CheckPasswordAsync(user, loginDto.Password))
         {
             var token = await GenerateTokenAsync(user);
-            return Ok(new { token });
+            return Ok(new
+            {
+                token,
+                userId = user.Id
+            });
         }
 
         return Unauthorized();
