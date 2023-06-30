@@ -2,18 +2,19 @@
 using Chat2.Controllers.Base;
 using Chat2.model;
 
-namespace Chat2.Controllers;
+namespace Chat2.Controllers.Messages;
 
 [AutoMap(typeof(Message))]
-public class MessageDetailsDto:EntityDto
+public class MessageDetailsDto : EntityDto
 {
     public string Body { get; set; }
     public DateTime CreatedAt { get; set; }
     public UserListItemDto Author { get; set; }
     public RoomListItemDto Room { get; set; }
 }
+
 [AutoMap(typeof(Message))]
-public class MessageListItem:EntityDto
+public class MessageListItem : EntityDto
 {
     public string Body { get; set; }
     public DateTime CreatedAt { get; set; }

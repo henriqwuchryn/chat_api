@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using AutoMapper;
 using Chat2;
+using Chat2.Hubs;
 using Chat2.model;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<Context>();
+builder.Services.AddSignalR();
+
 builder.Services.AddSwaggerGen(options =>
 {
     var scheme = new OpenApiSecurityScheme
@@ -48,20 +51,31 @@ builder.Services.AddIdentity<User, Role>(options =>
 }).AddEntityFrameworkStores<Context>();
 
 builder.Services.AddSingleton<IMapper>(
-    new Mapper(new MapperConfiguration(expression =>
-    {
-        expression.AddMaps(Assembly.GetExecutingAssembly());
-    })));
+    new Mapper(new MapperConfiguration(expression => { expression.AddMaps(Assembly.GetExecutingAssembly()); })));
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters
+    .AddJwtBearer(options =>
     {
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
-        ValidateAudience = false,
-        ValidateIssuer = false
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            ValidateAudience = false,
+            ValidateIssuer = false
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken)) // for me my hub endpoint is ConnectionHub
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization(auth =>
 {
@@ -69,6 +83,7 @@ builder.Services.AddAuthorization(auth =>
         .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
         .RequireAuthenticatedUser().Build());
 });
+
 
 var app = builder.Build();
 
@@ -84,5 +99,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hub");
 
 app.Run();

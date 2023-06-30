@@ -1,6 +1,5 @@
 ﻿namespace Chat2.Controllers;
 
-
 public class LoginDto
 {
     public string UserName { get; set; }

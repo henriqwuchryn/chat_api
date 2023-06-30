@@ -1,6 +1,4 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using AutoMapper;
+﻿using AutoMapper;
 using Chat2.Controllers.Base;
 using Chat2.model;
 using Microsoft.AspNetCore.Authorization;
@@ -16,13 +14,13 @@ public class UsersController : BaseController
 {
     private readonly IConfiguration _config;
     private readonly Context _context;
-    private  readonly IMapper _mapper;
+    private readonly IMapper _mapper;
 
     public UsersController(
         Context context,
         IConfiguration config,
         UserManager<User> userManager,
-        IMapper mapper) : base(userManager,context)
+        IMapper mapper) : base(userManager, context)
     {
         _context = context;
         _config = config;
@@ -48,7 +46,7 @@ public class UsersController : BaseController
         return Ok(userListItemList);
     }
 
-    
+
     [HttpPatch]
     [Authorize]
     [Route("/Me/Password")]

@@ -1,10 +1,11 @@
-﻿using System.Runtime.InteropServices.JavaScript;
-using AutoMapper;
+﻿using AutoMapper;
 using Chat2.Controllers.Base;
+using Chat2.Hubs;
 using Chat2.model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Chat2.Controllers;
@@ -16,22 +17,36 @@ public class RoomsController : BaseController
     private readonly IConfiguration _config;
     private readonly Context _context;
     private readonly IMapper _mapper;
+    private readonly IHubContext<ChatHub> _hub;
 
     public RoomsController(
         Context context,
         IConfiguration config,
         UserManager<User> userManager,
-        IMapper mapper) : base(userManager, context)
+        IMapper mapper,
+        IHubContext<ChatHub> hub) : base(userManager, context)
     {
         _context = context;
         _config = config;
         _mapper = mapper;
+        _hub = hub;
     }
 
     [HttpGet]
+    [Route("/AllRooms")]
     public IActionResult GetAllRooms()
     {
         var roomList = _context.Rooms.ToList();
+        var roomListItemDtoList = roomList.Select(room => _mapper.Map<RoomListItemDto>(room)).ToList();
+        return Ok(roomListItemDtoList);
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> GetRooms()
+    {
+        var user = await GetUserOrFailAsync();
+        var roomList = user.Rooms ?? new List<Room>();
         var roomListItemDtoList = roomList.Select(room => _mapper.Map<RoomListItemDto>(room)).ToList();
         return Ok(roomListItemDtoList);
     }
@@ -41,13 +56,10 @@ public class RoomsController : BaseController
     public IActionResult GetRoomById(string roomId)
     {
         var room = _context.Rooms.Include("Users").First(r => r.Id == roomId);
-        if (room != null)
-        {
-            var getRoomDto = _mapper.Map<RoomDetailsDto>(room);
-            return Ok(getRoomDto);
-        }
-
-        return NotFound();
+        if (room == null)
+            return NotFound();
+        var getRoomDto = _mapper.Map<RoomDetailsDto>(room);
+        return Ok(getRoomDto);
     }
 
     [HttpPost]
@@ -60,13 +72,14 @@ public class RoomsController : BaseController
         {
             Name = newRoomDto.Name,
             Description = newRoomDto.Description,
-            AuthorId = user.Id,
+            AuthorId = user.Id
         };
         _context.Rooms.Add(room);
-        user.Rooms ??= new List<Room>();
-        user.Rooms.Add(room);
         await _context.SaveChangesAsync();
-        await UserManager.UpdateAsync(user);
+        await JoinRoom(room.Id);
+
+        var roomDto = _mapper.Map<RoomDetailsDto>(room);
+        await BroadcastToRoom(room.Id, "updateRoom", roomDto);
         return Ok();
     }
 
@@ -77,18 +90,19 @@ public class RoomsController : BaseController
     {
         var room = await _context.Rooms.FindAsync(roomId);
         var user = await GetUserOrFailAsync();
-        var userContext = await _context.Users.FindAsync(user.Id);
 
-        if (room != null)
-        {
-            userContext.Rooms ??= new List<Room>();
-            userContext.Rooms.Add(room);
-            await UserManager.UpdateAsync(user);
-            return Ok();
-        }
+        if (room == null)
+            return NotFound();
 
-        return NotFound();
+        user.Rooms ??= new List<Room>();
+        user.Rooms.Add(room);
+        await _context.SaveChangesAsync();
+        await UserManager.UpdateAsync(user);
+        var roomDto = _mapper.Map<RoomDetailsDto>(room);
+        await BroadcastToRoom(roomId, "updateRoom", roomDto);
+        return Ok();
     }
+
 
     [HttpPatch]
     [Authorize]
@@ -97,20 +111,16 @@ public class RoomsController : BaseController
     {
         var user = await GetUserOrFailAsync();
         var room = await _context.Rooms.FindAsync(roomId);
-        if (room?.AuthorId != user.Id)
-        {
-            return Unauthorized();
-        }
+        if (room?.AuthorId != user.Id) return Unauthorized();
 
-        if (patchRoomDto.Name is "" or null)
-        {
-            return Problem("Value can't be empty");
-        }
+        if (patchRoomDto.Name is "" or null) return Problem("Value can't be empty");
 
         room.Name = patchRoomDto.Name;
-                      room.Description = patchRoomDto.Description;
-                      await _context.SaveChangesAsync();
-                      return Ok();
+        room.Description = patchRoomDto.Description;
+        await _context.SaveChangesAsync();
+        var roomDto = _mapper.Map<RoomDetailsDto>(room);
+        await BroadcastToRoom(roomId, "updateRoom", roomDto);
+        return Ok();
     }
 
     [HttpDelete]
@@ -119,13 +129,28 @@ public class RoomsController : BaseController
     {
         var user = await GetUserOrFailAsync();
         var room = await _context.Rooms.FindAsync(roomId);
-        if (room.AuthorId == user.Id)
-        {
-            _context.Rooms.Remove(room);
-            await _context.SaveChangesAsync();
-            return Ok();
-        }
+        if (room == null)
+            return BadRequest();
+        if (room.AuthorId != user.Id)
+            return Unauthorized();
 
-        return Unauthorized();
+        _context.Rooms.Remove(room);
+        await _context.SaveChangesAsync();
+
+        var roomDto = _mapper.Map<RoomDetailsDto>(room);
+        await BroadcastToRoom(roomId, "deleteRoom", roomDto);
+        return Ok();
+    }
+
+    
+    private async Task BroadcastToRoom(string roomId, string method, object data)
+    {
+        var room = await _context.Rooms.FindAsync(roomId);
+        if (room == null)
+            return;
+        foreach (var user in room.Users)
+        {
+            await _hub.Clients.User(user.Id).SendAsync(method, data);
+        }
     }
 }
